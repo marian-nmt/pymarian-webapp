@@ -3,10 +3,9 @@
 This is a webserver for pymarian demo
 
 **Features Supported:**
-* Test Marian models locally with ease (no need to wait for the models to be deployed into production)
-* Live Translation demo
+* Test Marian models locally with ease
 * Compare multiple models
-* Compare multiple instructions
+* Live translation demo (see translation as you speak or type)
 
 
 ## Setup
@@ -21,8 +20,7 @@ pymarian-webapp -h
 python -m pymarian_webapp -h
 ```
 
-## Start Server
-
+## Start the server
 
 ```bash
 python -m pymarian_webapp  -h

@@ -167,7 +167,7 @@ def attach_routes(**kwargs):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog="deimian",
+        prog="pymarian-webapp",
         description="Deploy Marian model to a RESTful server",
         epilog=f'Loaded from {__file__}',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
