@@ -1,0 +1,11 @@
+*.egg-info
+*.pyc
+*.swo
+*.swp
+*~
+.history
+__pycache__
+build/
+dist/*
+models
+

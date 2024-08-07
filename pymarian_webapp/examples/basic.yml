@@ -1,0 +1,23 @@
+# Format description for the config YAML file
+
+website:
+  footnote: Pymarian Webapp Demo # string. Optional. Displayed at the bottom of translator/ subpage
+
+translators:
+  en-kn: # string. Required. Model ID
+    type: base # string. Optional. Model type: base|mtapi. Default: base
+    name: En-Kn # string. Optional. Model name displayed in the select list
+    model: models/enu-kdi/enu.kdi.generalnn.replica_0.model.bin.best-perplexity.avx2.bin
+    vocab: models/enu-kdi/enu.kdi.generalnn.joint.segmenter.spm # path. Required for type=base. Path to vocab.spm
+    sentence_breaking: false # bool. Optional. Use sentence breaker. Default: false
+    #doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
+      # Automatically enabled if sentence_breaking=true
+
+  en-de: # string. Required. Model ID
+    type: base # string. Optional. Model type: base|mtapi. Default: base
+    name: En-De # string. Optional. Model name displayed in the select list
+    model: models/enu-deu/enu.deu.generalnn.replica_0.model.bin.best-perplexity.avx2.bin
+    vocab: models/enu-deu/enu.deu.generalnn.joint.segmenter.spm # path. Required for type=base. Path to vocab.spm
+    sentence_breaking: false # bool. Optional. Use sentence breaker. Default: false
+    #doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
+      # Automatically enabled if sentence_breaking=true

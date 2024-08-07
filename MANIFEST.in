@@ -1,0 +1,6 @@
+include README.md
+graft pymarian_webapp/static
+graft pymarian_webapp/templates
+graft pymarian_webapp/examples
+global-exclude *.pyc
+global-exclude *.history

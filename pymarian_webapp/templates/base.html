@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="{{url_for('app.static', filename='css/bootstrap.min.css')}}"
+        type="text/css">
+  <title>{% block title %} {% endblock %}</title>
+  {% block head %} {% endblock %}
+
+  <link rel="stylesheet" href="{{url_for('app.static', filename='css/custom.css')}}" type="text/css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+  <script src="{{ url_for('app.static', filename='js/diff.min.js') }}"></script>
+
+  {% if environ['GA_GTAG'] is defined %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{environ['GA_GTAG']}}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', "{{environ['GA_GTAG']}}");
+  </script>
+  {% endif %}
+</head>
+<body class="mx-3">
+<div id="wrap">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="{{ url_for('app.home')}}">Home</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('app.live_translate')}}">Live</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="about">About</a>
+        </li>
+      </ul>
+    </div>
+    <a href="https://github.com/marian-nmt/pymarian-webapp" target="_blank">
+      <img id="forkme" height="120" src="{{url_for('app.static', filename='img/forkme.svg')}}" alt="Fork me on GitHub" />
+    </a>
+  </nav>
+  <div class="container-fluid justify-content-center align-items-center" style="overflow-y: scroll;">
+    {% block content %} {% endblock %}
+  </div>
+
+  <div class="push">
+  </div>
+</div>
+
+<!-- style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2px; margin: 2px"-->
+<footer class="pagefooter alert-secondary">
+  {%block footer %} {% endblock %}
+  <div style="text-align: center">
+  <p class="font-weight-light float-none" style="margin: 0; padding: 3px"><sup><sub> Pymarian Web App </sub></sup></p>
+    <!--by TG (2023) -->
+  </div>
+</footer>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS; update: jqueyr is not required for bootstrap 5 -->
+<script src="{{url_for('app.static', filename='js/bootstrap.bundle.min.js')}}"></script>
+<script src="{{url_for('app.static', filename='js/jquery-3.5.1.min.js')}}"></script>
+</body>
+</html>

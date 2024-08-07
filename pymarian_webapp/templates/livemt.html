@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+
+{% block head %}
+  <style>
+      .text-display {
+          font-size: 1.3em;
+      }
+  </style>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="row mx-4">
+  <div class="col-12">
+    <h3>{% block title %} Live Translator {% endblock %}</h3>
+    <div class="float-end" style="margin-top: -1em;"> Status: <span id="status" class="badge text-bg-secondary">Unknown </span></div>
+  </div>
+
+  <div class="row my-2">
+      <label for="select_model" class="col-auto pt-1">MT:</label>
+      <div class="col-auto">
+        <select id="select_model" class="form-select form-control" onchange="model_id = this.value; update_url_params();">
+          {% for model_id in known_models %}
+          <option value="{{ model_id }}" {% if loop.index==0 %} selected {% endif %}>{{ model_id }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button id="speak-button" type="button" class="col-auto mx-2 btn btn-sm btn-outline-success" onclick="toggle_start_stop()">Speak</button>
+      <div class="col-auto">
+        <select class="form-select form-control" id="select_language" onchange="update_country(); update_url_params();"></select>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-control" id="select_dialect" onchange="update_url_params();"></select>
+      </div>
+      <!-- This below js extracted from chrome demos https://www.google.com/intl/en/chrome/demos/speech.html
+        Has list of languages and dialects and updates select tag with options -->
+        <script src="{{url_for('app.static', filename='js/webspeech.js')}}"> </script>
+      <div class="col-5 row pt-1" id="flicker-ctrl-grp">
+        {% set flicker_size=4 %}
+        <label class="col-auto" for="flicker-size">Flicker:</label>
+        <div class="col-auto">
+          <input type="range" class="form-range" id="flicker-size" min="0" max="10" value="{{flicker_size}}"
+           oninput="flicker_size = parseInt(this.value); flicker_out.innerHTML = this.value; update_url_params();">
+        </div>
+        <span class="col-auto" id="flicker_out">{{flicker_size}}</span>
+      </div>
+      <!--
+      <div class="form-check form-switch col-auto pt-1">
+        <input class="form-check-input" type="checkbox" role="switch" id="switch-prefix-force" checked oninput="toggle_force_decode()">
+        <label class="form-check-label" for="switch-prefix-force">Show unflickered</label>
+      </div>
+      -->
+    </div>
+  </div>
+
+  <div class="col-12 row">
+    <textarea id="source-txt" class="form-control border border-primary text-display" rows="5" height="100%"
+     placeholder="Enter your text here" onkeyup="text_state.update_source_text()"></textarea>
+  </div>
+  <div class="float-end">
+  <div class="col-auto form-check form-switch col-auto me-4">
+    <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault" onchange="$('#source-out-container').toggle()">
+    <label class="form-check-label" for="flexSwitchCheckDefault">Show source segments</label>
+    </div>
+  </div>
+  <div class="col-12 row py-2 text-muted" id="source-out-container" style="display: none;">
+    <h4 class="text-display">Source segments: <br/></h4>
+    <div id="source-txt-out"  class="text-display border border-primary rounded" style="min-height: 4em;"></div> <!--  display: block to see debug info on source splitting-->
+  </div>
+
+  <div class="col-12 row py-2">
+    {% if not translator.known_models %}
+      <p> No known models. see <code> --mt-models</code> argument to server</p>
+    {% else  %}
+    <h3 class="row mx-1">Translations</h3>
+    <div class="col-6">
+      <h4 class="m-1 text-display">Prefix forced and flickered:</h4>
+      <div id="target-out-prefixed" class="text-display border border-success rounded" style="min-height: 200px;"></div>
+    </div>
+    <div class="col-6">
+      <span class="float-end m-1" id="timer-txt"> aaa </span>
+      <h4 class="m-1 text-display">No prefix forcing (no flickering):</h4>
+      <div id="target-out-not-prefixed" class="text-display border border-success rounded" style="min-height: 200px;"></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-12">
+    <h5 id="about-asr"> About Speech Recognition API: </h5>
+      <p> The speech recognition used in this page is powered by <a href="https://wicg.github.io/speech-api/#speechreco-section" target="_blank">Web Speech API.</a>
+        Web browsers such as Edge and Chrome may send the speech data to a their cloud-based recognition API. Not all browsers support this feature yet (e.g., Firefox).
+        See <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API#browser_compatibility">Browser Compatibility.</a> </p>
+
+    <h5 id="issues">Known Issues</h5>
+    <ol>
+      <li> The speech recognition may not work in all browsers. It has been tested to work on Edge, Chrome, and Safari only.</li>
+      <li> Newer Chrome and Edge browsers may deny microphone access on this page if this page when served via HTTP (instead of HTTPS).
+         Workaround: Go to <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>,
+          navigate to "Insecure origins treated as secure" section add <code> <script>document.write(window.location.origin)</script> </code> as a secure origin. </li>
+    </ol>
+  </div>
+</div>
+
+
+<script src="{{url_for('app.static', filename='js/socket.io.min.js')}}"> </script>
+
+<script>
+  let api_url = "{{ url_for('app.translate') }}";
+  var model_id = document.getElementById("select_model").value;
+  const TGT_SEG_JOIN = "<br/>";  // FIXME:
+  const SRC_SEG_JOIN = TGT_SEG_JOIN
+  const socket = io();
+  socket.on('connect', () => {
+    console.log('Socket connected: ' + socket.id);
+    $('#status').text('Connected');
+    $('#status').attr('class', 'badge text-bg-success');
+  })
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected: ' + socket.id);
+    $('#status').text('Disconnected');
+    $('#status').attr('class', 'badge text-bg-danger');
+  })
+
+  var last_source_text = "";
+  var last_request_time = 0;
+  var delay_ms = 0; // ms; delay between translation requests
+  var flicker_size = 4; // tokens to flicker
+
+  const speak_button = document.getElementById("speak-button");
+  const src_text_area = document.getElementById("source-txt");
+  const interim_span = document.getElementById("asr-interim");
+
+  class TextState {
+
+    constructor() {
+      this.source_display = document.getElementById("source-txt-out");
+      this.target_display_prefixed = document.getElementById("target-out-prefixed");
+      this.target_display_unprefixed = document.getElementById("target-out-not-prefixed");
+      this.clear();
+    }
+
+    clear(){
+      this.source_final = "";
+      this.source_interim = "";
+      src_text_area.value = "";
+      this.target_segments = [];
+      this.target_segments_unprefixed = [];
+      this.source_segments = [];
+      this.source_display.innerHTML = "";
+      this.target_display_prefixed.innerHTML = "";
+      this.target_display_unprefixed.innerHTML = "";
+    }
+
+    refresh_source_view(){
+      var source_text = this.source_segments.length > 0 ? this.source_segments.join(SRC_SEG_JOIN) : "";
+      this.source_display.innerHTML = source_text;
+    }
+
+    refresh_target_view(){
+      var target_text = this.target_segments.length > 0 ? this.target_segments.join(TGT_SEG_JOIN) : "";
+      this.target_display_prefixed.innerHTML = target_text;
+      target_text = this.target_segments_unprefixed.length > 0 ? this.target_segments_unprefixed.join(TGT_SEG_JOIN) : "";
+      this.target_display_unprefixed.innerHTML = target_text;
+    }
+
+    update_source_text(){
+      this.source_final = src_text_area.value;
+      this.source_interim = "";
+      this.refresh_source_view();
+      this.translate_text();
+    }
+
+    translate_text(){
+      if (!socket.connected) {
+        console.log('Socket not connected. Ignoring translation request.');
+        return
+      }
+      var current_source_text = (this.source_final.trim() + " " + this.source_interim).trim();
+      if (!current_source_text || !model_id ) { // empty string or no known models => do nothing
+          console.log('Ignoring empty request: ', current_source_text, model_id);
+          return;
+      }
+
+      // select all sourceSentences from index of (targetSentences.length -1)
+      console.log("sourceTexts: ", current_source_text);
+      if (last_source_text == current_source_text) {
+        // no change except whitespace
+        console.log('Ignoring duplicate request');
+        return;
+      }
+
+      // delay translation requests
+      if (Date.now() - last_request_time < delay_ms) {
+        console.log('Ignoring request. Too soon.');
+        return;
+      }
+      last_source_text = current_source_text
+      last_request_time = Date.now();
+
+      var data = {
+        client_id: socket.id,
+        model_name: model_id,
+        source: current_source_text,
+        prev_source_segments: this.source_segments,  // prior source segments
+        prev_target_segments: this.target_segments,  // prior target segments
+        flicker_size: flicker_size,
+        show_unprefixed: true,
+        target_segments_unprefixed: this.target_segments_unprefixed
+      }
+      socket.emit('translate', data, (result) => {
+        console.log('Translation result: ', result);  // result is a dict
+        document.getElementById("timer-txt").innerHTML = '⏳' + result.time_taken + "s";
+        this.target_segments =  result.target_segments ? result.target_segments : [];
+        this.target_segments_unprefixed = result.target_segments_unprefixed ? result.target_segments_unprefixed : [];
+        this.refresh_target_view();
+        this.source_segments = result.source_segments ? result.source_segments : [];
+        this.refresh_source_view();
+      });
+    }
+  }
+  const text_state = new TextState();
+  socket.on('translated', (result) => {
+    console.log('Translation result: ', result);  // result is a dict
+  });
+
+  //====== Speech recognition ======
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  var recognizing;
+
+  function reset() {
+    recognizing = false;
+    speak_button.innerHTML = "🎙️Speak";
+  }
+  reset();
+  recognition.onend = reset;
+
+
+  function update_url_params(){
+    const currentUrl = new URL(window.location.href);
+    // Update the query parameter (e.g., 'myParam') with the selected value
+    currentUrl.searchParams.set('model', model_id);
+    currentUrl.searchParams.set('asr_dialect', select_dialect.value);
+    currentUrl.searchParams.set('flicker', flicker_size);
+    //currentUrl.searchParams.set('prefix_force', document.getElementById("switch-prefix-force").checked);
+    // Replace the current URL with the updated one
+    window.history.replaceState({}, '', currentUrl);
+  }
+
+function restore_state_from_params(){
+  const url_params = new URLSearchParams(window.location.search);
+  if (url_params.get('model')){
+    model_id =  url_params.get('model');
+    document.getElementById("select_model").value = model_id;
+  }
+
+  if (url_params.get('flicker')){
+    flicker_size = parseInt(url_params.get('flicker'));
+    document.getElementById("flicker-size").value = flicker_size;
+    document.getElementById("flicker_out").innerHTML = flicker_size;
+  }
+  // restore prefix force
+  //document.getElementById("switch-prefix-force").checked = url_params.get('prefix_force', "true") == "true";
+
+  // Set default language / dialect.
+  var asr_dialect_name = url_params.get('asr_dialect', 'en-US');
+  var [lang_idx, dialect_idx] = find_dialect_idx(asr_dialect_name);
+  if (lang_idx < 0) {
+    console.log("Language not found: ", asr_dialect_name);
+    lang_idx = 10; // English
+    dialect_idx = 11; // English (United States)
+  }
+
+  select_language.selectedIndex = lang_idx;
+  update_country();
+  select_dialect.selectedIndex = dialect_idx;
+}
+restore_state_from_params();
+
+  recognition.onresult = (event) => {
+    var final = "";
+    var interim = "";
+    for (var i = 0; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        final += " " + event.results[i][0].transcript;
+      } else {
+        interim += " " + event.results[i][0].transcript;
+      }
+    }
+    src_text_area.value = (final + " " + interim).trim()
+    console.log("ASR Final: ", final)
+    console.log("ASR Interim: ", interim)
+    text_state.source_final = final;
+    text_state.source_interim = interim;
+
+    text_state.refresh_source_view();
+    text_state.translate_text();
+  }
+
+  function toggle_start_stop() {
+    if (recognizing) {
+      console.log("ASR: stop ...");
+      recognition.stop();
+      reset();
+      speak_button.classList.remove("btn-success");
+      speak_button.classList.add("btn-outline-success");
+    } else {
+      recognition.lang = select_dialect.value;
+      console.log("ASR: start ... lang=" + recognition.lang);
+      recognition.start();
+      recognizing = true;
+      speak_button.innerHTML = "🎙️Stop";
+      // set classes btn btn-outline-success
+      speak_button.classList.remove("btn-outline-success");
+      speak_button.classList.add("btn-success");
+    }
+  }
+
+  function toggle_force_decode(){
+    if (document.getElementById("switch-prefix-force").checked){
+      console.log("Force decode: ON");
+      document.getElementById("flicker-size").disabled = false;
+      document.getElementById("flicker-ctrl-grp").classList.add("text-muted");
+    } else {
+      console.log("Force decode: OFF");
+      document.getElementById("flicker-size").disabled = true;
+      document.getElementById("flicker-ctrl-grp").classList.remove("text-muted");
+    }
+    update_url_params();
+  }
+
+
+  // ===================
+</script>
+
+{% endblock %}

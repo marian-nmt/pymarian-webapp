@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <h3>{% block title %} PyMarian Web Demo {% endblock %}</h3>
+      <textarea id="instruction-txt" class="form-control" rows="3" placeholder="Enter instruction text" style="display: none;"></textarea>
+      <!-- <label for="source-txt">Enter text to translate:</label> -->
+      <textarea id="source-txt" class="form-control" rows="4" height="100%" placeholder="Enter text to translate"></textarea>
+      <button id="translate-btn" class="btn btn-primary mt-2" onclick="translate_all()">Translate</button>
+    </div>
+  </div>
+
+  {% if not translator.known_models %}
+  <p> No known models. See <code>--config</code> argument to server</p>
+  {% else  %}
+
+    <div class="row mt-4" id="translation-results">
+    {% for model_id in known_models %}
+    {% set num_cols = 12 / known_models|length %}
+      <div class="col-{{ num_cols|int }} translation-result">
+        <div class="model-name"><h4>{{ model_data[model_id].name }}</h4></div>
+        <div class="textarea-wrapper">
+          <textarea id="target-{{ model_id }}" name="target-{{ model_id }}" class="form-control" readonly rows="7" height="100%"></textarea>
+          <i class="fas fa-copy copy-icon"></i>
+          <span class="timebox" id="timer-{{ model_id }}"></span>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="alert alert-info">
+        {% for i in range(known_models|length) %}
+          {% for j in range(i + 1, known_models|length) %}
+          <button class="btn" onclick="diff(this.id, '{{ known_models[i] }}', '{{ known_models[j] }}')">Diff {{ known_models[i] }} vs {{ known_models[j] }}</button>
+          {% endfor %}
+        {% endfor %}
+        </div>
+
+        <p id="diffOutput" name="diffOutput"></p>
+      </div>
+    </div>
+</div>
+
+{% endif %}
+
+<script>
+var known_models = {{ known_models|tojson }};
+
+function instruction_switch(){
+  // make instruction-txt hide/show based on instruction-switch state
+  if ($('#instruction-switch').is(':checked')) {
+    $('#instruction-txt').show();
+  } else {
+    $('#instruction-txt').hide();
+  }
+}
+
+function translate_all(){
+    var sourceText = $('#source-txt').val();
+    if (!sourceText.trim()) {
+        // ignore alert on live translate
+        if (!$('#live_switch').is(':checked')) {
+          alert('Please enter some text to translate.');
+        }
+        return;
+    }
+
+    if ($('#instruction-switch').is(':checked') && $('#instruction-txt').val().trim()) {
+      sourceText = $('#instruction-txt').val() + " " + sourceText;
+    }
+
+    sourceText = sourceText.split("\n");
+    $('.loading').show();
+    setTimeout(function() {
+      // loop in javascript over known_models
+      for (var i = 0; i < known_models.length; i++) {
+        var model_id = known_models[i];
+        translate(model_id, sourceText);
+      }
+      $('.loading').hide();
+    }, 1500);
+}
+
+  function translate(model_id, source) {
+    var url = "{{ url_for('app.translate') }}";
+    data = JSON.stringify({'model_name': model_id, 'source': source})
+    console.log("Calling translation endpoint: " + data);
+    var posting = $.ajax(url, {
+      data: data,
+      contentType: 'application/json',
+      type: 'POST'
+    });
+    // pass posting.done a lambda that calls update_view with the first argument bound to model_id
+    posting.done((result) => update_view(model_id, result));
+}
+
+  function update_view(model_id, result) {
+    console.log('Updating ' + model_id + ' with result: ' + JSON.stringify(result))
+    document.getElementById("target-" + model_id).value = result.translations[0].outputs.join("\n");
+    // alternate (not working): <i class="fa-solid fa-timer"></i>
+    document.getElementById("timer-" + model_id).innerHTML = '⏳' + result.time_taken + "s";
+    //diff("mtapi", "ende")
+  }
+
+  // displays the diff between the two textareas
+  function diff(element_id, model1_id, model2_id) {
+    // get the text from the textareas
+    from = document.getElementById("target-" + model1_id).value.trim();
+    to = document.getElementById("target-" + model2_id).value.trim();
+
+    const wordDiff = Diff.diffWords(from, to);
+
+    let diffHtml = "";
+    wordDiff.forEach((part) => {
+      // Assign appropriate class based on the type of change
+      if (part.added) {
+        diffHtml += `<span class="text-inserted">${escapeHtml(part.value)}</span>`;
+      } else if (part.removed) {
+        diffHtml += `<span class="text-deleted">${escapeHtml(part.value)}</span>`;
+      } else {
+        diffHtml += `<span class="text-unchanged">${escapeHtml(part.value)}</span>`;
+      }
+    });
+
+    // Function to escape HTML characters to prevent XSS attacks
+    function escapeHtml(text) {
+      var map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    // Set the innerHTML of the diff container with the built HTML
+    document.getElementById('diffOutput').innerHTML = diffHtml;
+  }
+
+  window.onload = function () {
+    $(document).ajaxStart(function () {
+      $("#loading-progress").show();
+    });
+
+    $(document).ajaxStop(function () {
+      $("#loading-progress").hide();
+    });
+
+
+    // the copy buttons in the translation boxes
+    $('.copy-icon').click(function() {
+      var $textarea = $(this).siblings('textarea');
+      $textarea.select();
+      document.execCommand('copy');
+    });
+
+
+  }
+
+</script>
+
+{% endblock %}

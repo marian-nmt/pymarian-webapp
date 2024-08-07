@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "deimian"
+dynamic = ["version", "dependencies"]
+description = "Pymarian Web App"
+requires-python = ">=3.9"
+authors = [
+    {name = "Thamme Gowda", email = "thammegowda@microsoft.com"},
+    {name = "Matt Post", email = "mattpost@microsoft.com"},
+]
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+
+[project.urls]
+homepage = "https://github.com/marian-nmt/pymarian-webapp"
+documentation = "https://github.com/marian-nmt/pymarian-webapp"
+
+[project.scripts]
+pymarian-webapp = "pymarian_webapp.app:main"
+
+
+[tool.setuptools]
+include-package-data = true   # see whats in MANIFEST.in
+
+[tool.setuptools.packages.find]
+where = ["."] # by default, find packages in current directory
+include = ["pymarian_webapp*"]  # package names should match these glob patterns (["*"] by default)
+#exclude = ["my_package.tests*"]  # exclude packages matching these glob patterns
+
+[tool.setuptools.exclude-package-data]
+pymarian_webapp = [".gitattributes"]   # dont include files not tracked by git
+
+[tool.setuptools.dynamic]
+version = {attr = "pymarian_webapp.__version__"}
+dependencies = {file = "requirements.txt"}
+
+
+[tool.black]
+line-length = 110
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+include = '.*\.pyi?$'
+skip-string-normalization = true
+exclude = "pyleaf.*"
+
+# black doesn't sort imports. So we use isort for that. See discussion https://github.com/psf/black/issues/333
+[tool.isort]
+profile = "black"
+src_paths = ["pymarian_webapp"]

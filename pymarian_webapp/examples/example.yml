@@ -1,0 +1,26 @@
+# Format description for the config YAML file
+
+website:
+  #footnote: # string. Optional. Displayed at the bottom of translator/ subpage
+
+translators:
+  model_id: # string. Required. Model ID
+    type: # string. Optional. Model type: base|mtapi|leaf. Default: base
+    name: # string. Optional. Model name displayed in the select list
+
+    model: # path. Required for type=base|mttruck.
+      # Path to model.npz if type=base
+      # Path to model final/ directory if type=mttruck
+    vocab: # path. Required for type=base. Path to vocab.spm
+
+    subscription-key: # string. Required for type=api
+    source-language: # string. Required for type=api
+    target-language: # string. Required for type=api
+
+    manifest-json: # string. Required for type=leaf
+
+    variants: # YAML. Optional. See examples/adaptivemt.yml and examples/phrasefix.yml
+
+    sentence_breaking: # bool. Optional. Use sentence breaker. Default: false
+    doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
+      # Automatically enabled if sentence_breaking=true
