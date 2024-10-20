@@ -7,13 +7,13 @@ import sentence_splitter
 from pymarian import Translator
 
 from . import log
-from .constants import BASE_ARGS, DEF_FLICKER_SIZE
+from .constants import BASE_ARGS, DEF_FLICKER_SIZE, DEF_EAGER_LOAD
 from .mtapi_client import MTAPIClient
 
 
 class TranslatorService:
 
-    def __init__(self, mt_models: Dict[str, Dict[str, str]], eager_load=False) -> None:
+    def __init__(self, mt_models: Dict[str, Dict[str, str]], eager_load=DEF_EAGER_LOAD) -> None:
         self.known_models = {}  # base case: no known models; not using MT service
 
         if mt_models:

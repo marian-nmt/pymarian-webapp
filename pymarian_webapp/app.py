@@ -20,8 +20,9 @@ from flask_socketio import SocketIO, emit, send
 from pymarian.defaults import Defaults as D
 
 from . import __version__, log
-from .constants import BASE_ARGS, DEF_FLICKER_SIZE
+from .constants import BASE_ARGS, DEF_FLICKER_SIZE, CHOSEN_METRICS, DEF_EAGER_LOAD
 from .translator_service import TranslatorService
+from .evaluator_service import EvaluatorService
 
 DEF_MODEL_ID = 'NA'
 FLOAT_POINTS = 4
@@ -44,7 +45,6 @@ sys_info = {
     'Root Directory': str(Path(__file__).parent.absolute()),
     'Base Args': BASE_ARGS,
 }
-
 
 def render_template(*args, **kwargs):
     return flask.render_template(*args, environ=os.environ, **kwargs)
@@ -73,45 +73,63 @@ def favicon():
 
 
 def attach_routes(**kwargs):
-    transl_service = TranslatorService(kwargs.get('mt_models', None), eager_load=kwargs.get('eager', False))
+    transl_service = TranslatorService(kwargs.get('mt_models', None), eager_load=kwargs.get('eager', DEF_EAGER_LOAD))
+    eval_service = EvaluatorService(names=kwargs.get('metrics'), eager_load=kwargs.get('eager', DEF_EAGER_LOAD))
     sys_info['mt_models'] = transl_service.known_models
 
     @bp.route('/')
     def home():
         return render_template(
-            'home.html', translator=transl_service, known_models=list(transl_service.known_models.keys()), model_data=transl_service.known_models
+            'home.html', translator=transl_service,
+            known_models=list(transl_service.known_models.keys()),
+            known_metrics=list(eval_service.known_models.keys()),
+            model_data=transl_service.known_models
         )
 
-    @bp.route("/translate", methods=["POST", "GET"])
-    def translate():
-        st = time.time()
-        if request.method not in ("POST", "GET"):
-            return "GET and POST are supported", 400
+    def _get_args(request):
         if request.method == 'GET':
             args = request.args
-        if request.method == 'POST':
+        elif request.method == 'POST':
             if request.headers.get('Content-Type') == 'application/json':
                 args = request.json
             else:
                 args = request.form
+        return args
 
+    def _get_list(args, key):
         if hasattr(args, 'getlist'):
-            sources = args.getlist("source")
+            values = args.getlist(key)
         else:
-            sources = args.get("source")
-            if isinstance(sources, str):
-                sources = [sources]
+            values = args.get(key)
+            if values and not isinstance(values, list):
+                values = [values]
+        return values
+
+    @bp.route("/translate", methods=["POST", "GET"])
+    def translate():
+        if request.method not in ("POST", "GET"):
+            return "GET and POST are supported", 400
+
+        st = time.time()
+        args = _get_args(request)
+        sources = _get_list(args, "source")
 
         if not sources:
             return "Please submit 'source' parameter", 400
 
         model_name = args.get("model_name")
         translations = transl_service.translate(model_name, sources)
-
-        res = dict(
-            sources=sources, translations=translations, time_taken=round(time.time() - st, 3), time_units='s'
-        )
-
+        mts = translations[0]['outputs']
+        res = dict(sources=sources, translations=translations, time_units='s')
+        metrics = args.get("metrics", [])
+        if metrics:
+            res['metrics'] = {}
+            for metric in metrics:
+                if metric not in eval_service.known_models:
+                    return f"Unknown metric {metric}. Known metrics are {eval_service.known_models}", 400
+                scores = eval_service.evaluate(metric, sources, mts)
+                res['metrics'][metric] = scores
+        res['time_taken'] = round(time.time() - st, 3)
         return flask.jsonify(jsonify(res))
 
     ####### Live MT ########
@@ -180,6 +198,9 @@ def parse_args():
         "-c", "--config", type=argparse.FileType('r'), default=None, help="Config file with MT models"
     )
     parser.add_argument("-e", "--eager", action="store_true", help="Eagerly load models")
+    parser.add_argument("-me", "--metrics", type=str, nargs="*",
+                       help="List of MT evaluation metrics. Only QE metrics are supported.",
+                       default=CHOSEN_METRICS)
     args = parser.parse_args()
 
     config_stream = args.config
