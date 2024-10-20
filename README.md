@@ -56,3 +56,7 @@ An example config is `pymarian_webapp/exampless/basic.yml`
 ```bash
 python -m pymarian_webapp -d -c pymarian_webapp/examples/basic.yml
 ```
+
+## Screenshot
+
+![Pymarian Webapp](docs/pymarian-webapp1.png?raw=true "Pymarian Webapp")
