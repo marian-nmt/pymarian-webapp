@@ -4,20 +4,22 @@ website:
   footnote: Pymarian Webapp Demo # string. Optional. Displayed at the bottom of translator/ subpage
 
 translators:
-  en-kn: # string. Required. Model ID
+  # local model example
+  en-de-research: # string. Model key.
     type: base # string. Optional. Model type: base|mtapi. Default: base
-    name: En-Kn # string. Optional. Model name displayed in the select list
-    model: models/enu-kdi/enu.kdi.generalnn.replica_0.model.bin.best-perplexity.avx2.bin
-    vocab: models/enu-kdi/enu.kdi.generalnn.joint.segmenter.spm # path. Required for type=base. Path to vocab.spm
+    name: En-De research # string. Optional. Model name displayed in the select list
+    model: models/en-de/marian.en-de.best-perplexity.avx2.bin # string. Path to Marian model.
+    vocab: models/en-de/segmenter.spm # string. Pathto 
     sentence_breaking: false # bool. Optional. Use sentence breaker. Default: false
-    #doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
+    # doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
       # Automatically enabled if sentence_breaking=true
 
-  en-de: # string. Required. Model ID
-    type: base # string. Optional. Model type: base|mtapi. Default: base
-    name: En-De # string. Optional. Model name displayed in the select list
-    model: models/enu-deu/enu.deu.generalnn.replica_0.model.bin.best-perplexity.avx2.bin
-    vocab: models/enu-deu/enu.deu.generalnn.joint.segmenter.spm # path. Required for type=base. Path to vocab.spm
-    sentence_breaking: false # bool. Optional. Use sentence breaker. Default: false
-    #doc_enabled: # bool. Optional. Indicate it's a DocMT model. Default: false
-      # Automatically enabled if sentence_breaking=true
+  # Microsoft Translator API example
+  en-de-prod: # string. Model key.
+    type: mtapi
+    name: En-De prod # string. Optional. Model name displayed in the select list
+    sentence_breaking: false
+    doc_enabled: true # bool. Optional. Indicate model can translate multiple sentences at once. Default: false
+    subscription-key:  # string. Required for type=mtapi, but env var MTAPI_SUBSCRIPTION_KEY if value is None
+    source-language: en # string. Required for type=mtapi
+    target-language: de # string. Required for type=mtapi

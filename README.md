@@ -8,23 +8,35 @@ This is a webserver for pymarian demo
 * Live translation demo (see translation as you speak or type)
 
 
-## Setup
+## Setup/installation
+
+pymarian-webapp requires Python 3.9 or later.
 
 ```bash
 git clone https://github.com/marian-nmt/pymarian-webapp
 cd pymarian-webapp
-pip install -e .
 
-# either one of these should work
-pymarian-webapp -h
-python -m pymarian_webapp -h
+# optionally create an env
+python3 -m venv venv
+. venv/bin/activate
+
+# install
+pip install .
 ```
 
 ## Start the server
 
+You need to provide the model with a config file which tells it where to find models. Two models types are supported: a path to a local Marian model, or the [Microsoft Translator API](https://learn.microsoft.com/en-us/azure/ai-services/translator/reference/v3-0-reference), which requires an API subscription key.
+
 ```bash
-python -m pymarian_webapp  -h
-usage: pymarian-webapp [-h] [-d] [-p PORT] [-ho HOST] [-b BASE] [-c CONFIG] [-e]
+pymarian-webapp -c pymarian_webapp/examples/basic.yml
+```
+This starts a service on http://localhost:6060 by default. See the config file for other model options.
+
+More options are available and can be see via the `-h` flag:
+
+```bash
+usage: pymarian-webapp [-h] [-d] [-p PORT] [-ho HOST] [-b BASE] [-c CONFIG] [-e] [-me [METRICS ...]]
 
 Deploy Marian model to a RESTful server
 
@@ -38,21 +50,17 @@ options:
   -c CONFIG, --config CONFIG
                         Config file with MT models (default: None)
   -e, --eager           Eagerly load models (default: False)
-
-
+  -me [METRICS ...], --metrics [METRICS ...]
+                        List of MT evaluation metrics. Only QE metrics are supported. (default: ['wmt20-comet-qe-da',
+                        'wmt22-cometkiwi-da', 'wmt23-cometkiwi-da-xl'])
 ```
-
-```bash
-python -m pymarian_webapp -d   # -d for debug / hot reload
-```
-
-This starts a service on http://localhost:6060 by default.
-
-An example config is `pymarian_webapp/exampless/basic.yml`
-
 
 ## Test multiple translators
 
 ```bash
 python -m pymarian_webapp -d -c pymarian_webapp/examples/basic.yml
 ```
+
+## Screenshot
+
+![Pymarian Webapp](docs/pymarian-webapp1.png?raw=true "Pymarian Webapp")

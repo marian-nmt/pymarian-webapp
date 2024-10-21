@@ -3,13 +3,25 @@
 {% block content %}
 <div class="container">
   <div class="row">
-    <div class="col-12">
-      <h3>{% block title %} PyMarian Web Demo {% endblock %}</h3>
+    <div class="col-12 row">
+      <div class="{% if known_metrics%} col-9 {%else%} col-12 {%endif%}">
+      <h3>{% block title %} PyMarian {% endblock %}</h3>
       <textarea id="instruction-txt" class="form-control" rows="3" placeholder="Enter instruction text" style="display: none;"></textarea>
       <!-- <label for="source-txt">Enter text to translate:</label> -->
       <textarea id="source-txt" class="form-control" rows="4" height="100%" placeholder="Enter text to translate"></textarea>
       <button id="translate-btn" class="btn btn-primary mt-2" onclick="translate_all()">Translate</button>
     </div>
+    {% if known_metrics %}
+    <div class="col-3 mt-2">
+      <h5>Metrics</h5>
+      <select name="metrics" id="metrics" class="form-select primary" multiple="multiple" aria-label="Metrics">
+        {% for metric in known_metrics %}
+          <option value="{{metric}}">{{metric}}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {%endif%}
+  </div>
   </div>
 
   {% if not translator.known_models %}
@@ -26,16 +38,19 @@
           <i class="fas fa-copy copy-icon"></i>
           <span class="timebox" id="timer-{{ model_id }}"></span>
         </div>
+        <div class="metrics-wrap px-1" id="score-{{model_id}}">
+        </div>
       </div>
     {% endfor %}
     </div>
 
     <div class="row mt-4">
       <div class="col-12">
-        <div class="alert alert-info">
+        <div class="alert alert-info p-2">
+          Compare:
         {% for i in range(known_models|length) %}
           {% for j in range(i + 1, known_models|length) %}
-          <button class="btn" onclick="diff(this.id, '{{ known_models[i] }}', '{{ known_models[j] }}')">Diff {{ known_models[i] }} vs {{ known_models[j] }}</button>
+          <a href="#" onclick="diff(this.id, '{{ known_models[i] }}', '{{ known_models[j] }}')">{{ known_models[i] }} vs {{ known_models[j] }}</a>
           {% endfor %}
         {% endfor %}
         </div>
@@ -44,20 +59,10 @@
       </div>
     </div>
 </div>
-
 {% endif %}
 
 <script>
 var known_models = {{ known_models|tojson }};
-
-function instruction_switch(){
-  // make instruction-txt hide/show based on instruction-switch state
-  if ($('#instruction-switch').is(':checked')) {
-    $('#instruction-txt').show();
-  } else {
-    $('#instruction-txt').hide();
-  }
-}
 
 function translate_all(){
     var sourceText = $('#source-txt').val();
@@ -69,25 +74,30 @@ function translate_all(){
         return;
     }
 
-    if ($('#instruction-switch').is(':checked') && $('#instruction-txt').val().trim()) {
-      sourceText = $('#instruction-txt').val() + " " + sourceText;
+    sourceText = sourceText.split("\n");
+    metrics = $('#metrics').val();
+    console.log("Metrics: " + JSON.stringify(metrics));
+    if (metrics){
+      var currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('metrics', metrics.join(','));
+      currentUrl.searchParams.set('source', sourceText.join('\n'));
+      window.history.replaceState({}, document.title, currentUrl);
     }
 
-    sourceText = sourceText.split("\n");
     $('.loading').show();
     setTimeout(function() {
       // loop in javascript over known_models
       for (var i = 0; i < known_models.length; i++) {
         var model_id = known_models[i];
-        translate(model_id, sourceText);
+        translate(model_id, sourceText, metrics);
       }
       $('.loading').hide();
     }, 1500);
 }
 
-  function translate(model_id, source) {
+  function translate(model_id, source, metrics) {
     var url = "{{ url_for('app.translate') }}";
-    data = JSON.stringify({'model_name': model_id, 'source': source})
+    data = JSON.stringify({'model_name': model_id, 'source': source, 'metrics': metrics});
     console.log("Calling translation endpoint: " + data);
     var posting = $.ajax(url, {
       data: data,
@@ -104,6 +114,16 @@ function translate_all(){
     // alternate (not working): <i class="fa-solid fa-timer"></i>
     document.getElementById("timer-" + model_id).innerHTML = '⏳' + result.time_taken + "s";
     //diff("mtapi", "ende")
+
+    if (result.metrics) {
+      let scoreEl = document.getElementById("score-" + model_id);
+      var tmp = '<table class="table">';
+      for (const [metricName, metricValue] of Object.entries(result.metrics)) {
+        tmp += `<tr class="p-1"><td>${metricName}</td> <td>${metricValue} </td></tr>`;
+      }
+      tmp += "</table>";
+      scoreEl.innerHTML = tmp;
+    }
   }
 
   // displays the diff between the two textareas
@@ -159,7 +179,19 @@ function translate_all(){
       document.execCommand('copy');
     });
 
+    // Access "metrics" from URL search parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const metricsFromUrl = urlParams.get('metrics');
+    if (metricsFromUrl) {
+      const metricsArray = metricsFromUrl.split(',');
+      $('#metrics').val(metricsArray);
+    }
 
+    // Access "source" from URL search parameters and set the value of the textarea
+    const sourceFromUrl = urlParams.get('source');
+    if (sourceFromUrl) {
+      $('#source-txt').val(sourceFromUrl);
+    }
   }
 
 </script>
