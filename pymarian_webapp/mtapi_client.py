@@ -7,6 +7,7 @@ import os
 import uuid
 from typing import List
 
+from pymarian_webapp import log
 import requests
 
 
@@ -46,6 +47,7 @@ class MTAPIClient:
         translations = []
 
         for sent in response:
-            translations.append([translation["text"] for translation in sent["translations"]])
-
+            sent_out = ' '.join([translation["text"] for translation in sent["translations"]])
+            translations.append(sent_out)
+        log.info(f"Translations: {translations}")
         return translations

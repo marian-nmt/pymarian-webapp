@@ -242,6 +242,7 @@ def main():
            threaded=False, processes=8  :: parallelize requests, but... cached_models doesnt work.
                                 so we endup reloading model for each request
     """
+    log.info(f"Starting server at {cli_args['host']}:{cli_args['port']}")
     socketio.run(app, port=cli_args["port"], host=cli_args["host"], debug=app.debug)
 
 
